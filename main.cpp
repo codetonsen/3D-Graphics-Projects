@@ -1,7 +1,9 @@
 #include "threepp/extras/imgui/imgui_context.hpp"
 #include "threepp/threepp.hpp"
+#include "threepp/extras/imgui/imgui_context.hpp"
 #include <cmath>
 #include <memory>
+#include <vector>
 bool startSelect = false;
 using namespace threepp;
 namespace {
@@ -36,7 +38,7 @@ namespace {
 
 }
 
-
+std::vector<Vector3> selected = {};
 int main() {
     Canvas canvas;
     GLRenderer renderer(canvas);
@@ -98,6 +100,7 @@ int main() {
     //scene->add(collisionObjects);
 
 
+
     canvas.onWindowResize([&](WindowSize size) {
         camera->aspect = size.getAspect();
         camera->updateProjectionMatrix();
@@ -128,35 +131,45 @@ int main() {
         if(startSelect) {
 
 
-        raycaster.setFromCamera(mouse, camera.get());
-        // TODO: This needs to be changed to collision group when you have time
-        auto intersected = raycaster.intersectObjects(scene->children);
-        if(intersected.size() > 0) {
-            auto hasSelected = MeshBasicMaterial::create();
-            hasSelected->color = Color(20,50,22);
-            auto prevObj = scene->getObjectByName("selected");
-            if (prevObj->is<Mesh>()){
-                prevObj->as<Mesh>()->setMaterial(hasSelected);
-                prevObj->name = "";
+            raycaster.setFromCamera(mouse, camera.get());
+
+            auto intersected = raycaster.intersectObjects(scene->children);
+            if(intersected.size() > 0) {
+
+                auto hasSelected = MeshBasicMaterial::create();
+                hasSelected->color = Color(20,50,22);
+
+
+                auto &intersect = intersected.front();
+                auto obj = intersect.object;
+                obj->name = "selected";
+                if(!selected.empty()) {
+
+
+                if (selected.front() == obj->position) {
+                    if(obj->is<Mesh>()){
+                        obj->as<Mesh>()->setMaterial(hasSelected);
+                        selected = {};
+
+                    }
+                }
+                } else {
+                    selected.emplace_back(obj->position);
+                    auto newMat = MeshBasicMaterial::create();
+                    newMat->color = Color(0,255,128);
+                    auto orgMat = obj->as<Mesh>()->material()->clone();
+                    if (obj->is<Mesh>()) {
+
+                        obj->as<Mesh>()->setMaterial(newMat);
+                    }
+
+                    if(intersected.size() == 0){
+                        obj->as<Mesh>()->setMaterial(orgMat);
+                    }
+                }
+
             }
-
-            auto &intersect = intersected.front();
-            auto obj = intersect.object;
-            obj->name = "selected";
-
-            auto newMat = MeshBasicMaterial::create();
-            newMat->color = Color(0,255,128);
-            auto orgMat = obj->as<Mesh>()->material()->clone();
-            if (obj->is<Mesh>()) {
-
-                obj->as<Mesh>()->setMaterial(newMat);
-            }
-
-            if(intersected.size() == 0){
-                obj->as<Mesh>()->setMaterial(orgMat);
-            }
-        }
-        startSelect = false;
+            startSelect = false;
         }
         renderer.render(scene, camera);
     });
